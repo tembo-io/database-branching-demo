@@ -15,7 +15,7 @@ jobs:
           profile: minimal
           components: clippy, rustfmt
       - name: Install sqlx
-        run: cargo install sqlx-cli --version 0.7.3
+        run: cargo install sqlx-cli
       - name: Cargo format
         run: cargo fmt --all --check
       - name: Cargo clippy
@@ -32,16 +32,9 @@ jobs:
           polling-interval: 10000
           max-polling-attempts: 120
 
-      - name: Set environment vars
-        run: |
-          echo "DB_USER=$(echo '${{ steps.tembo-branching-action.outputs.user }}' | base64 -d)" >> $GITHUB_ENV
-          echo "DB_PASSWORD=$(echo '${{ steps.tembo-branching-action.outputs.password }}' | base64 -d)" >> $GITHUB_ENV
-          echo "DB_HOST=$(echo '${{ steps.tembo-branching-action.outputs.host }}')" >> $GITHUB_ENV
-          echo "DB_PORT=$(echo '${{ steps.tembo-branching-action.outputs.port }}')" >> $GITHUB_ENV
-
       - name: Run sqlx migration
         env:
-          DATABASE_URL: "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/postgres"
+          DATABASE_URL: "${{ steps.tembo-branching-action.outputs.database_url }}/postgres"
         run: sqlx migrate run 
 
       - name: Cleanup branched instance
