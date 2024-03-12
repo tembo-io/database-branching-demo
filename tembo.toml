@@ -1,0 +1,4 @@
+[demo-standard]
+environment = "prod"
+instance_name = "demo-standard"
+stack = "Standard"

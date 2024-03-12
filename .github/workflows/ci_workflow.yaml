@@ -1,0 +1,56 @@
+name: Branching Workflow
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  migration-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install rust toolchain
+        uses: actions/toolchain@v1
+        with:
+          profile: minimal
+          components: clippy, rustfmt
+      - name: Install sqlx
+        run: cargo install sqlx-cli --version 0.7.3
+      - name: Cargo format
+        run: cargo fmt --all --check
+      - name: Cargo clippy
+        run: cargo clippy
+
+      - name: Branch Database
+        id: tembo-branching-action
+        uses: tembo-io/database-branching-action@v1
+        with:
+          instance-name: ci-mig-${{ github.event.number }} 
+          org-id: ${{ secrets.ORG_ID }}
+          instance-id: ${{ secrets.INSTANCE_ID }}
+          tembo-token: ${{ secrets.TEMBO_TOKEN }}
+          polling-interval: 10000
+          max-polling-attempts: 120
+
+      - name: Set environment vars
+        run: |
+          echo "DB_USER=$(echo '${{ steps.tembo-branching-action.outputs.user }}' | base64 -d)" >> $GITHUB_ENV
+          echo "DB_PASSWORD=$(echo '${{ steps.tembo-branching-action.outputs.password }}' | base64 -d)" >> $GITHUB_ENV
+          echo "DB_HOST=$(echo '${{ steps.tembo-branching-action.outputs.host }}')" >> $GITHUB_ENV
+          echo "DB_PORT=$(echo '${{ steps.tembo-branching-action.outputs.port }}')" >> $GITHUB_ENV
+
+      - name: Run sqlx migration
+        env:
+          DATABASE_URL: "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/postgres"
+        run: sqlx migrate run 
+
+      - name: Cleanup branched instance
+        if: ${{ github.event_name == 'pull_request' && (github.event.action == 'closed' || github.event.action == 'merged') }}
+        id: tembo-branching-action-delete
+        uses: ./
+        with:
+          action: delete
+          org-id: ${{ secrets.ORG_ID }}
+          instance-id: ${{ steps.tembo-branching-action.outputs.instance_id }}
+          tembo-token: ${{ secrets.TEMBO_TOKEN }}
+
