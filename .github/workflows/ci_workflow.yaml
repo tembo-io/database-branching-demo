@@ -24,7 +24,7 @@ jobs:
 
       - name: Branch Database
         id: tembo-branching-action
-        uses: tembo-io/database-branching-action@v1.0.1
+        uses: tembo-io/database-branching-action@v1
         with:
           instance-name: ci-mig-${{ github.event.number }} 
           org-id: ${{ secrets.ORG_ID }}
